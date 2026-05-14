@@ -1,0 +1,20 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Magento generated files
+var/
+generated/
+pub/static/
+pub/media/
+
+# Dependencies
+vendor/
+
+# Environment
+.env
+*.log

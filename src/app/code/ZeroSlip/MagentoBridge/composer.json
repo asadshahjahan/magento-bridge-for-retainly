@@ -1,0 +1,14 @@
+{
+    "name": "zeroslip/module-magento-bridge",
+    "description": "Official ZeroSlip CRM integration for Magento 2",
+    "type": "magento2-module",
+    "version": "1.0.0",
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "ZeroSlip\\MagentoBridge\\": ""
+        }
+    }
+}
