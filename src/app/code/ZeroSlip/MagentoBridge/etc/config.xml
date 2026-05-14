@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <zeroslip>
+            <general>
+                <enabled>0</enabled>
+                <api_key/>
+                <store_id/>
+                <api_base_url>https://test.backend.zeroslip.co/api/v4/magento/</api_base_url>
+            </general>
+        </zeroslip>
+    </default>
+</config>

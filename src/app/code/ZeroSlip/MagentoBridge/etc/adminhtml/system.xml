@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="zeroslip" translate="label" sortOrder="200">
+            <label>ZeroSlip</label>
+        </tab>
+        <section id="zeroslip"
+                 translate="label"
+                 showInDefault="1"
+                 showInWebsite="1"
+                 showInStore="1"
+                 sortOrder="10">
+            <label>General</label>
+            <tab>zeroslip</tab>
+            <resource>ZeroSlip_MagentoBridge::config</resource>
+            <group id="general"
+                   translate="label"
+                   type="text"
+                   sortOrder="10"
+                   showInDefault="1"
+                   showInWebsite="1"
+                   showInStore="1">
+                <label>General Settings</label>
+                <field id="enabled"
+                       translate="label"
+                       type="select"
+                       sortOrder="10"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                    <label>Enable ZeroSlip Integration</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="api_key"
+                       translate="label"
+                       type="text"
+                       sortOrder="20"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                    <label>ZeroSlip API Key</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                    <frontend_model>ZeroSlip\MagentoBridge\Block\Adminhtml\System\Config\ApiKey</frontend_model>
+                </field>
+                <field id="store_id"
+                       translate="label"
+                       type="text"
+                       sortOrder="30"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                    <label>ZeroSlip Store ID</label>
+                </field>
+                <field id="api_base_url"
+                       translate="label"
+                       type="text"
+                       sortOrder="40"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                    <label>ZeroSlip API Base URL</label>
+                    <comment>Default: https://test.backend.zeroslip.co/api/v4/magento/</comment>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>
