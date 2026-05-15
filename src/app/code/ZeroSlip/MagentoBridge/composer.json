@@ -1,6 +1,6 @@
 {
-    "name": "zeroslip/module-magento-bridge",
-    "description": "Official ZeroSlip CRM integration for Magento 2",
+    "name": "retnly/magento-sync",
+    "description": "Official Retnly CRM integration for Magento 2",
     "type": "magento2-module",
     "version": "1.0.0",
     "autoload": {

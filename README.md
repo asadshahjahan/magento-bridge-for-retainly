@@ -9,7 +9,12 @@ Official Magento 2 integration module for the ZeroSlip CRM platform.
 - Sends real-time events to ZeroSlip's marketing engine
 
 ## Installation
-Drop the contents of `src/` into your Magento installation's `app/code/` directory.
+Via Composer:
+```bash
+composer require retnly/magento-sync
+```
+
+Or drop the contents of `src/` into your Magento installation's `app/code/` directory.
 
 ## Requirements
 - Magento 2.4+
