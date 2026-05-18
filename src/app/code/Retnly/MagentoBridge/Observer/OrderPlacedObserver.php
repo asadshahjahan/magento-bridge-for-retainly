@@ -7,18 +7,25 @@ namespace Retnly\MagentoBridge\Observer;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Retnly\MagentoBridge\Helper\Api;
+use Retnly\MagentoBridge\Model\EventOutbox;
 
 class OrderPlacedObserver implements ObserverInterface
 {
     private Api $api;
+    private EventOutbox $outbox;
 
-    public function __construct(Api $api)
+    public function __construct(Api $api, EventOutbox $outbox)
     {
-        $this->api = $api;
+        $this->api    = $api;
+        $this->outbox = $outbox;
     }
 
     public function execute(Observer $observer): void
     {
+        if (!$this->api->isEnabled()) {
+            return;
+        }
+
         /** @var \Magento\Sales\Model\Order $order */
         $order = $observer->getEvent()->getOrder();
 
@@ -62,6 +69,15 @@ class OrderPlacedObserver implements ObserverInterface
             'updated_at'          => $order->getUpdatedAt(),
         ];
 
-        $this->api->post('orders/', $payload);
+        // Same store + same increment_id always derives the same key, so a
+        // re-fire of sales_order_place_after (admin save, capture, etc.) is
+        // de-duped by Retnly via the Idempotency-Key header.
+        $idempotencyKey = sprintf(
+            'magento-order-%d-%s',
+            (int) $order->getStoreId(),
+            (string) $order->getIncrementId()
+        );
+
+        $this->outbox->enqueue('orders/', $payload, $idempotencyKey);
     }
 }

@@ -1,0 +1,35 @@
+{
+    "retnly_abandoned_cart_sync": {
+        "column": {
+            "quote_id": true,
+            "synced_at": true,
+            "attempts": true,
+            "last_status": true,
+            "last_error": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "RETNLY_ABND_CART_SYNC_QID_QUOTE_EID": true
+        }
+    },
+    "retnly_event_outbox": {
+        "column": {
+            "entity_id": true,
+            "event_type": true,
+            "payload": true,
+            "idempotency_key": true,
+            "created_at": true,
+            "sent_at": true,
+            "attempts": true,
+            "last_status": true,
+            "last_error": true
+        },
+        "index": {
+            "RETNLY_EVENT_OUTBOX_SENT_AT_ENTITY_ID": true,
+            "RETNLY_EVENT_OUTBOX_IDEMPOTENCY_KEY": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        }
+    }
+}

@@ -2,10 +2,15 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
     <group id="default">
-        <job name="zeroslip_abandoned_cart_sync"
+        <job name="retnly_abandoned_cart_sync"
              instance="Retnly\MagentoBridge\Cron\AbandonedCartSync"
              method="execute">
             <schedule>0 * * * *</schedule>
+        </job>
+        <job name="retnly_event_outbox_flush"
+             instance="Retnly\MagentoBridge\Cron\EventOutboxFlush"
+             method="execute">
+            <schedule>* * * * *</schedule>
         </job>
     </group>
 </config>

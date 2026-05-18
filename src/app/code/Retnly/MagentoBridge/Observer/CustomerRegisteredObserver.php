@@ -7,18 +7,25 @@ namespace Retnly\MagentoBridge\Observer;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Retnly\MagentoBridge\Helper\Api;
+use Retnly\MagentoBridge\Model\EventOutbox;
 
 class CustomerRegisteredObserver implements ObserverInterface
 {
     private Api $api;
+    private EventOutbox $outbox;
 
-    public function __construct(Api $api)
+    public function __construct(Api $api, EventOutbox $outbox)
     {
-        $this->api = $api;
+        $this->api    = $api;
+        $this->outbox = $outbox;
     }
 
     public function execute(Observer $observer): void
     {
+        if (!$this->api->isEnabled()) {
+            return;
+        }
+
         /** @var \Magento\Customer\Model\Customer $customer */
         $customer = $observer->getEvent()->getCustomer();
 
@@ -35,6 +42,8 @@ class CustomerRegisteredObserver implements ObserverInterface
             'updated_at'         => $customer->getUpdatedAt(),
         ];
 
-        $this->api->post('customers/', $payload);
+        $idempotencyKey = sprintf('magento-customer-%d', (int) $customer->getId());
+
+        $this->outbox->enqueue('customers/', $payload, $idempotencyKey);
     }
 }

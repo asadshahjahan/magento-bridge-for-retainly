@@ -9,15 +9,15 @@
     },
     "autoload": {
         "files": [
-            "src/app/code/ZeroSlip/MagentoBridge/registration.php"
+            "src/app/code/Retnly/MagentoBridge/registration.php"
         ],
         "psr-4": {
-            "ZeroSlip\\MagentoBridge\\": "src/app/code/ZeroSlip/MagentoBridge/"
+            "Retnly\\MagentoBridge\\": "src/app/code/Retnly/MagentoBridge/"
         }
     },
     "extra": {
         "map": [
-            ["src/app/code/ZeroSlip/MagentoBridge", "ZeroSlip/MagentoBridge"]
+            ["src/app/code/Retnly/MagentoBridge", "Retnly/MagentoBridge"]
         ]
     }
 }

@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="retnly_abandoned_cart_sync"
+           resource="default"
+           engine="innodb"
+           comment="Tracks abandoned-cart quotes successfully synced to Retnly (one row per synced quote).">
+        <column xsi:type="int"
+                name="quote_id"
+                padding="10"
+                unsigned="true"
+                nullable="false"
+                comment="Quote entity_id this sync record tracks"/>
+        <column xsi:type="timestamp"
+                name="synced_at"
+                on_update="false"
+                nullable="false"
+                default="CURRENT_TIMESTAMP"
+                comment="When the successful POST to Retnly completed"/>
+        <column xsi:type="smallint"
+                name="attempts"
+                padding="5"
+                unsigned="true"
+                nullable="true"
+                default="0"
+                comment="Total POST attempts (including failures); reserved for retry/DLQ work"/>
+        <column xsi:type="smallint"
+                name="last_status"
+                padding="5"
+                unsigned="true"
+                nullable="true"
+                comment="HTTP status of the last POST attempt; reserved for retry/DLQ work"/>
+        <column xsi:type="varchar"
+                name="last_error"
+                length="500"
+                nullable="true"
+                comment="Last error message if the POST failed; reserved for retry/DLQ work"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="quote_id"/>
+        </constraint>
+        <constraint xsi:type="foreign"
+                    referenceId="RETNLY_ABND_CART_SYNC_QID_QUOTE_EID"
+                    table="retnly_abandoned_cart_sync"
+                    column="quote_id"
+                    referenceTable="quote"
+                    referenceColumn="entity_id"
+                    onDelete="CASCADE"/>
+    </table>
+    <table name="retnly_event_outbox"
+           resource="default"
+           engine="innodb"
+           comment="Transactional outbox of outbound events to Retnly; written inside the business transaction by observers, drained by a per-minute cron.">
+        <column xsi:type="int"
+                name="entity_id"
+                padding="10"
+                unsigned="true"
+                nullable="false"
+                identity="true"
+                comment="Auto-increment primary key"/>
+        <column xsi:type="varchar"
+                name="event_type"
+                length="64"
+                nullable="false"
+                comment="Retnly endpoint slug, e.g. orders/, customers/"/>
+        <column xsi:type="text"
+                name="payload"
+                nullable="false"
+                comment="JSON-encoded payload to POST"/>
+        <column xsi:type="varchar"
+                name="idempotency_key"
+                length="128"
+                nullable="true"
+                comment="Idempotency-Key header value sent with the POST"/>
+        <column xsi:type="timestamp"
+                name="created_at"
+                on_update="false"
+                nullable="false"
+                default="CURRENT_TIMESTAMP"
+                comment="When the event was enqueued"/>
+        <column xsi:type="timestamp"
+                name="sent_at"
+                on_update="false"
+                nullable="true"
+                comment="When the POST returned 2xx; NULL while pending"/>
+        <column xsi:type="smallint"
+                name="attempts"
+                padding="5"
+                unsigned="true"
+                nullable="false"
+                default="0"
+                comment="Total POST attempts (including failures)"/>
+        <column xsi:type="smallint"
+                name="last_status"
+                padding="5"
+                unsigned="true"
+                nullable="true"
+                comment="HTTP status of the last attempt"/>
+        <column xsi:type="varchar"
+                name="last_error"
+                length="500"
+                nullable="true"
+                comment="Last error message if the POST failed"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <index referenceId="RETNLY_EVENT_OUTBOX_SENT_AT_ENTITY_ID" indexType="btree">
+            <column name="sent_at"/>
+            <column name="entity_id"/>
+        </index>
+        <index referenceId="RETNLY_EVENT_OUTBOX_IDEMPOTENCY_KEY" indexType="btree">
+            <column name="idempotency_key"/>
+        </index>
+    </table>
+</schema>
