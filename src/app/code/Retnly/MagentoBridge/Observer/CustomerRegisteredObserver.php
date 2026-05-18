@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace ZeroSlip\MagentoBridge\Observer;
+namespace Retnly\MagentoBridge\Observer;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
-use ZeroSlip\MagentoBridge\Helper\Api;
+use Retnly\MagentoBridge\Helper\Api;
 
 class CustomerRegisteredObserver implements ObserverInterface
 {

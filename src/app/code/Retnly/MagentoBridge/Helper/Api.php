@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroSlip\MagentoBridge\Helper;
+namespace Retnly\MagentoBridge\Helper;
 
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Helper\Context;
@@ -51,7 +51,7 @@ class Api extends AbstractHelper
     }
 
     /**
-     * POST a JSON payload to a ZeroSlip API endpoint.
+     * POST a JSON payload to a Retnly API endpoint.
      * Errors are logged to zeroslip.log and never re-thrown.
      */
     public function post(string $endpoint, array $payload): void
@@ -89,7 +89,7 @@ class Api extends AbstractHelper
             $status = $this->curl->getStatus();
             if ($status < 200 || $status >= 300) {
                 $this->logger->warning(sprintf(
-                    '[ZeroSlip] POST %s returned HTTP %d: %s',
+                    '[Retnly] POST %s returned HTTP %d: %s',
                     $url,
                     $status,
                     $this->curl->getBody()
@@ -97,7 +97,7 @@ class Api extends AbstractHelper
             }
         } catch (\Exception $e) {
             $this->logger->error(sprintf(
-                '[ZeroSlip] POST %s failed: %s',
+                '[Retnly] POST %s failed: %s',
                 $url,
                 $e->getMessage()
             ));

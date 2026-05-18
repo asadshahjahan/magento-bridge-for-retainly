@@ -3,7 +3,7 @@
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
     <group id="default">
         <job name="zeroslip_abandoned_cart_sync"
-             instance="ZeroSlip\MagentoBridge\Cron\AbandonedCartSync"
+             instance="Retnly\MagentoBridge\Cron\AbandonedCartSync"
              method="execute">
             <schedule>0 * * * *</schedule>
         </job>

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroSlip\MagentoBridge\Block\Adminhtml\System\Config;
+namespace Retnly\MagentoBridge\Block\Adminhtml\System\Config;
 
 use Magento\Config\Block\System\Config\Form\Field;
 use Magento\Framework\Data\Form\Element\AbstractElement;

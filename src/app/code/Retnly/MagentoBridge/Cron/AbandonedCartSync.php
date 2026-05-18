@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace ZeroSlip\MagentoBridge\Cron;
+namespace Retnly\MagentoBridge\Cron;
 
 use Magento\Quote\Model\ResourceModel\Quote\CollectionFactory as QuoteCollectionFactory;
-use ZeroSlip\MagentoBridge\Helper\Api;
+use Retnly\MagentoBridge\Helper\Api;
 
 class AbandonedCartSync
 {

@@ -7,8 +7,8 @@
                 <resource id="Magento_Backend::stores">
                     <resource id="Magento_Backend::stores_settings">
                         <resource id="Magento_Config::config">
-                            <resource id="ZeroSlip_MagentoBridge::config"
-                                      title="ZeroSlip MagentoBridge Configuration"
+                            <resource id="Retnly_MagentoBridge::config"
+                                      title="Retnly MagentoBridge Configuration"
                                       sortOrder="10"/>
                         </resource>
                     </resource>

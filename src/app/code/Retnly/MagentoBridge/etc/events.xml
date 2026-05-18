@@ -3,10 +3,10 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
     <event name="sales_order_place_after">
         <observer name="zeroslip_order_placed"
-                  instance="ZeroSlip\MagentoBridge\Observer\OrderPlacedObserver"/>
+                  instance="Retnly\MagentoBridge\Observer\OrderPlacedObserver"/>
     </event>
     <event name="customer_register_success">
         <observer name="zeroslip_customer_registered"
-                  instance="ZeroSlip\MagentoBridge\Observer\CustomerRegisteredObserver"/>
+                  instance="Retnly\MagentoBridge\Observer\CustomerRegisteredObserver"/>
     </event>
 </config>

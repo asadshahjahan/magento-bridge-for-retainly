@@ -3,7 +3,7 @@
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
         <tab id="zeroslip" translate="label" sortOrder="200">
-            <label>ZeroSlip</label>
+            <label>Retnly</label>
         </tab>
         <section id="zeroslip"
                  translate="label"
@@ -13,7 +13,7 @@
                  sortOrder="10">
             <label>General</label>
             <tab>zeroslip</tab>
-            <resource>ZeroSlip_MagentoBridge::config</resource>
+            <resource>Retnly_MagentoBridge::config</resource>
             <group id="general"
                    translate="label"
                    type="text"
@@ -29,7 +29,7 @@
                        showInDefault="1"
                        showInWebsite="1"
                        showInStore="1">
-                    <label>Enable ZeroSlip Integration</label>
+                    <label>Enable Retnly Integration</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
                 <field id="api_key"
@@ -39,9 +39,9 @@
                        showInDefault="1"
                        showInWebsite="1"
                        showInStore="1">
-                    <label>ZeroSlip API Key</label>
+                    <label>Retnly API Key</label>
                     <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
-                    <frontend_model>ZeroSlip\MagentoBridge\Block\Adminhtml\System\Config\ApiKey</frontend_model>
+                    <frontend_model>Retnly\MagentoBridge\Block\Adminhtml\System\Config\ApiKey</frontend_model>
                 </field>
                 <field id="store_id"
                        translate="label"
@@ -50,7 +50,7 @@
                        showInDefault="1"
                        showInWebsite="1"
                        showInStore="1">
-                    <label>ZeroSlip Store ID</label>
+                    <label>Retnly Store ID</label>
                 </field>
                 <field id="api_base_url"
                        translate="label"
@@ -59,7 +59,7 @@
                        showInDefault="1"
                        showInWebsite="1"
                        showInStore="1">
-                    <label>ZeroSlip API Base URL</label>
+                    <label>Retnly API Base URL</label>
                     <comment>Default: https://test.backend.zeroslip.co/api/v4/magento/</comment>
                 </field>
             </group>
