@@ -1,0 +1,85 @@
+How to Connect Your Magento Store to ZeroSlip
+==============================================
+
+Step 1 — Install the ZeroSlip module
+SSH into your Magento server and run:
+
+    cd /path/to/magento
+    composer require retnly/magento-sync
+    bin/magento module:enable Retnly_MagentoBridge
+    bin/magento setup:upgrade
+    bin/magento setup:di:compile
+    bin/magento cache:flush
+
+
+Step 2 — Set your admin token to never expire
+
+    bin/magento config:set oauth/access_token_lifetime/admin 0
+    bin/magento cache:flush
+
+Then generate your API token:
+
+    curl -X POST https://your-store.com/rest/V1/integration/admin/token \
+      -H "Content-Type: application/json" \
+      -d '{"username":"your_admin_username","password":"your_admin_password"}'
+
+Save the token it returns — you'll need it in Step 4.
+
+
+Step 3 — Get your ZeroSlip API Key
+Log into the ZeroSlip dashboard -> Integrations -> Magento. You'll see a ZeroSlip
+API Key at the top. Copy this key now before doing anything else — once you connect
+the store in the next step, this field disappears from the screen.
+
+
+Step 4 — Connect your store on the ZeroSlip dashboard
+On the same page, fill in:
+
+    Store URL:           your Magento store URL (e.g. https://your-store.com)
+    Magento API Token:   the token you generated in Step 2
+
+Click Connect Magento Store. The page should switch to show "Connected" with your
+store URL.
+
+
+Step 5 — Configure the module in Magento Admin
+Go to your Magento admin panel -> Stores -> Configuration -> Retnly -> MagentoBridge
+
+Fill in:
+
+    Enable Retnly Integration:   Yes
+    Retnly API Key:              paste the key you copied in Step 3
+    Retnly Store ID:             leave blank (this is set automatically by the system)
+    Retnly API Base URL:         should already show the correct URL — do not change
+                                 it unless instructed
+
+Click Save Config, then flush cache:
+
+    bin/magento cache:flush
+
+
+Step 6 — Verify your cron is running
+Most production Magento stores already have cron configured. Verify:
+
+    crontab -l | grep magento
+
+If you don't see bin/magento cron:run, set it up:
+
+    bin/magento cron:install
+
+The cron must run every minute for order and customer sync to work.
+
+
+Step 7 — Import historical data (optional)
+On the ZeroSlip dashboard -> Magento page, select a start date under
+"Sync Your Magento Data" and click Start Import to pull in past orders and customers.
+
+
+That's it — you're connected
+-----------------------------
+From now on:
+
+  - Every new order syncs to ZeroSlip automatically within ~1 minute
+  - Every new customer registration syncs automatically
+  - Abandoned carts sync hourly (no duplicate sends)
+  - Your checkout speed is completely unaffected — all syncing happens in the background
