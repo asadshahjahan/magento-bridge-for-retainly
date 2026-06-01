@@ -5,6 +5,18 @@
         <observer name="retnly_order_placed"
                   instance="Retnly\MagentoBridge\Observer\OrderPlacedObserver"/>
     </event>
+    <event name="sales_order_invoice_pay">
+        <observer name="retnly_order_paid"
+                  instance="Retnly\MagentoBridge\Observer\OrderPaidObserver"/>
+    </event>
+    <event name="sales_order_shipment_save_after">
+        <observer name="retnly_order_fulfilled"
+                  instance="Retnly\MagentoBridge\Observer\OrderFulfilledObserver"/>
+    </event>
+    <event name="sales_order_creditmemo_save_after">
+        <observer name="retnly_order_refunded"
+                  instance="Retnly\MagentoBridge\Observer\OrderRefundedObserver"/>
+    </event>
     <event name="customer_register_success">
         <observer name="retnly_customer_registered"
                   instance="Retnly\MagentoBridge\Observer\CustomerRegisteredObserver"/>
