@@ -82,4 +82,18 @@ From now on:
   - Every new order syncs to ZeroSlip automatically within ~1 minute
   - Every new customer registration syncs automatically
   - Abandoned carts sync hourly (no duplicate sends)
+  - Order paid, fulfilled, and refunded events fire automatically for marketing automations
   - Your checkout speed is completely unaffected — all syncing happens in the background
+
+
+Automation Triggers Available in ZeroSlip
+------------------------------------------
+Once connected, you can build automations in ZeroSlip dashboard -> Automations
+using any of these Magento trigger events:
+
+  - magento_order_placed     fires when a new order is placed
+  - magento_order_paid       fires when an invoice is created (payment confirmed)
+  - magento_order_fulfilled  fires when the order is shipped and complete
+  - magento_order_cancelled  fires when an order is cancelled
+  - magento_order_refunded   fires when a credit memo is issued
+  - magento_cart_abandoned   fires hourly for carts idle over 1 hour (Email + Push only)
