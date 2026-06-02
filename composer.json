@@ -3,6 +3,24 @@
     "description": "Official Retnly CRM integration for Magento 2",
     "type": "magento2-module",
     "license": "Apache-2.0",
+    "homepage": "https://github.com/asadshahjahan/magento-bridge-for-retainly",
+    "authors": [
+        {
+            "name": "Asad Shahjahan",
+            "homepage": "https://retnly.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/asadshahjahan/magento-bridge-for-retainly/issues",
+        "source": "https://github.com/asadshahjahan/magento-bridge-for-retainly"
+    },
+    "keywords": [
+        "magento",
+        "magento2",
+        "crm",
+        "retnly",
+        "integration"
+    ],
     "require": {
         "php": ">=8.1",
         "magento/framework": ">=100.4"
@@ -14,10 +32,5 @@
         "psr-4": {
             "Retnly\\MagentoBridge\\": "src/app/code/Retnly/MagentoBridge/"
         }
-    },
-    "extra": {
-        "map": [
-            ["src/app/code/Retnly/MagentoBridge", "Retnly/MagentoBridge"]
-        ]
     }
 }
