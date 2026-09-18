@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Retnly\MagentoBridge\ViewModel;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\App\RequestInterface;
 use Magento\Framework\View\Element\Block\ArgumentInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
@@ -35,13 +36,16 @@ class PixelConfig implements ArgumentInterface
 
     private ScopeConfigInterface $scopeConfig;
     private StoreManagerInterface $storeManager;
+    private RequestInterface $request;
 
     public function __construct(
         ScopeConfigInterface $scopeConfig,
-        StoreManagerInterface $storeManager
+        StoreManagerInterface $storeManager,
+        RequestInterface $request
     ) {
         $this->scopeConfig  = $scopeConfig;
         $this->storeManager = $storeManager;
+        $this->request      = $request;
     }
 
     /**
@@ -80,6 +84,7 @@ class PixelConfig implements ArgumentInterface
             'endpoint'    => rtrim($this->value(self::XML_PATH_API_BASE_URL), '/') . '/event/',
             'storeDomain' => $this->getStoreDomain(),
             'appKey'      => $this->value(self::XML_PATH_STORE_ID),
+            'productId'   => $this->getProductId(),
             'push'        => [
                 'enabled'  => $this->isPushEnabled(),
                 'vapidKey' => $this->isPushEnabled() ? $this->value('zeroslip/pixel/vapid_key') : '',
@@ -100,6 +105,23 @@ class PixelConfig implements ArgumentInterface
         $base = (string) $this->storeManager->getStore()->getBaseUrl();
         $host = parse_url($base, PHP_URL_HOST);
         return is_string($host) && $host !== '' ? $host : rtrim($base, '/');
+    }
+
+    /**
+     * The product being viewed, or null on every other page.
+     *
+     * Read off the REQUEST rather than through Magento\Catalog\Helper\Data or
+     * the deprecated Registry: the action name plus the `id` param is the same
+     * fact without adding a Magento_Catalog dependency to this module, and it
+     * cannot accidentally load a product model into a cached block.
+     */
+    public function getProductId(): ?string
+    {
+        if ($this->request->getFullActionName() !== 'catalog_product_view') {
+            return null;
+        }
+        $id = $this->request->getParam('id');
+        return ($id === null || $id === '') ? null : (string) $id;
     }
 
     private function firebaseConfig(): array

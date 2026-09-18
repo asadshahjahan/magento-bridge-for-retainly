@@ -64,6 +64,13 @@ class ProductChangedObserver implements ObserverInterface
                 'price'      => $product->getPrice() !== null ? (float) $product->getPrice() : null,
                 'created_at' => $product->getCreatedAt(),
                 'updated_at' => $product->getUpdatedAt(),
+                // Storefront path segment, so Iris can deep-link a product card.
+                'url_key'    => (string) $product->getUrlKey(),
+                // Plain text: the backend parses this to learn the merchant's own
+                // attribute vocabulary, so HTML tags would become false facets.
+                'description' => $this->plainText((string) $product->getDescription()),
+                // Shopify-shaped dimensions, for variant resolution in chat.
+                'options'    => $this->configurableOptions($product),
                 // Same shape the REST sync returns, so the receiver reuses
                 // `_build_product_images` rather than growing a second parser.
                 'media_gallery_entries' => $this->galleryEntries($product),
@@ -82,6 +89,61 @@ class ProductChangedObserver implements ObserverInterface
                 (string) ($product->getUpdatedAt() ?? '')
             )
         );
+    }
+
+    /**
+     * Magento descriptions are HTML. The backend parses this text to learn the
+     * merchant's own attribute vocabulary ("Fabric: Cotton Lawn."), so tags
+     * left in would become false facets. Block-level tags become newlines
+     * first, otherwise two sentences in separate <p>s run together into one.
+     */
+    private function plainText(string $html): string
+    {
+        $text = strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</div>'], "\n", $html));
+        return trim(preg_replace('/\n{3,}/', "\n\n", html_entity_decode($text)));
+    }
+
+    /**
+     * Shopify-shaped option list: [{"name": "Size", "values": ["S", "M"]}].
+     *
+     * The key is `name`, not `label`, because that is exactly what the Shopify
+     * sync writes — the backend's card builder reads `options[].name` and would
+     * silently show no dimensions for any other spelling.
+     *
+     * Magento models a configurable product as a parent plus child products
+     * rather than as variants, so the dimensions live on the parent's
+     * configurable attributes and have to be assembled rather than copied.
+     * A simple product has none, and an empty list is the correct answer.
+     *
+     * Wrapped like galleryEntries: a product loaded without its type instance
+     * must not make saving it in the admin fail.
+     */
+    private function configurableOptions($product): array
+    {
+        if ($product->getTypeId() !== 'configurable') {
+            return [];
+        }
+        $out = [];
+        try {
+            $attributes = $product->getTypeInstance()->getConfigurableAttributesAsArray($product);
+            foreach ((array) $attributes as $attr) {
+                $values = [];
+                foreach ((array) ($attr['values'] ?? []) as $v) {
+                    if (!empty($v['store_label'])) {
+                        $values[] = (string) $v['store_label'];
+                    }
+                }
+                if ($values) {
+                    $out[] = [
+                        'name'   => (string) ($attr['store_label'] ?? $attr['frontend_label'] ?? ''),
+                        'values' => $values,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            return [];
+        }
+        return $out;
     }
 
     /**

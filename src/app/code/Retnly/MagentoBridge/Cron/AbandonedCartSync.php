@@ -66,8 +66,12 @@ class AbandonedCartSync
         $conn       = $this->resourceConnection->getConnection();
 
         $collection = $this->quoteCollectionFactory->create();
+        // NOT filtered on customer_email here. Magento leaves that column NULL for a
+        // guest cart until the order is placed, so requiring it selected only carts
+        // that had CONVERTED — the exact opposite of abandoned. The email lives on
+        // quote_address instead; resolveEmail() finds it and the loop below drops any
+        // cart that genuinely has none.
         $collection->addFieldToFilter('is_active', 1)
-                   ->addFieldToFilter('customer_email', ['notnull' => true])
                    ->addFieldToFilter('items_count', ['gt' => 0])
                    // Between the floor and the cutoff: old enough to be
                    // abandoned, recent enough to be worth recovering.
@@ -96,13 +100,22 @@ class AbandonedCartSync
             }
 
             $telephone = $this->resolveTelephone($quote);
+            $email     = $this->resolveEmail($quote);
+
+            // No email AND no phone means there is no way to reach this shopper, so
+            // the cart is not recoverable and sending it would only create an
+            // unusable CRM row. Done here rather than in the query because the email
+            // can live on either the quote or its addresses.
+            if ($email === '' && $telephone === '') {
+                continue;
+            }
 
             $payload = [
                 'store_id'           => $this->api->getStoreId(),
                 'quote_id'           => (int) $quote->getId(),
-                'customer_email'     => $quote->getCustomerEmail(),
-                'customer_firstname' => $quote->getCustomerFirstname(),
-                'customer_lastname'  => $quote->getCustomerLastname(),
+                'customer_email'     => $email,
+                'customer_firstname' => $this->resolveName($quote, 'Firstname'),
+                'customer_lastname'  => $this->resolveName($quote, 'Lastname'),
                 'customer_id'        => $quote->getCustomerId() !== null
                                             ? (int) $quote->getCustomerId()
                                             : null,
@@ -167,6 +180,69 @@ class AbandonedCartSync
             $telephone = trim((string) $address->getTelephone());
             if ($telephone !== '') {
                 return $telephone;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * The cart's email, from wherever Magento actually put it.
+     *
+     * `quote.customer_email` is NOT populated during guest checkout — Magento writes
+     * the address the shopper types onto `quote_address` and only copies it up to the
+     * quote when the ORDER is placed. So for a genuinely abandoned guest cart that
+     * column is always NULL, and filtering on it selected only carts that had
+     * converted, i.e. precisely the ones that are not abandoned.
+     *
+     * Checked in the same order as resolveTelephone(): billing first, then shipping,
+     * because a cart can carry a shipping address and no billing one.
+     */
+    private function resolveEmail($quote): string
+    {
+        $email = trim((string) $quote->getCustomerEmail());
+        if ($email !== '') {
+            return $email;
+        }
+        foreach (['getBillingAddress', 'getShippingAddress'] as $getter) {
+            try {
+                $address = $quote->{$getter}();
+            } catch (\Exception $e) {
+                continue;
+            }
+            if (!$address) {
+                continue;
+            }
+            $email = trim((string) $address->getEmail());
+            if ($email !== '') {
+                return $email;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * First non-empty of the quote's own name fields, then the addresses'.
+     * Same reason as the email: a guest cart carries these on the address only.
+     */
+    private function resolveName($quote, string $field): string
+    {
+        $getter = 'get' . $field;
+        $value = trim((string) $quote->{$getter}());
+        if ($value !== '') {
+            return $value;
+        }
+        foreach (['getBillingAddress', 'getShippingAddress'] as $addressGetter) {
+            try {
+                $address = $quote->{$addressGetter}();
+            } catch (\Exception $e) {
+                continue;
+            }
+            if (!$address) {
+                continue;
+            }
+            $value = trim((string) $address->{$getter}());
+            if ($value !== '') {
+                return $value;
             }
         }
         return '';

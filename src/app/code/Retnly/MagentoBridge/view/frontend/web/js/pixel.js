@@ -39,6 +39,7 @@ define([
     // list so a name this file invents fails loudly here instead of being
     // silently dropped by the receiver.
     var TRACKED = [
+        'product_viewed',
         'product_added_to_cart',
         'product_removed_from_cart',
         'cart_viewed',
@@ -301,6 +302,16 @@ define([
         var path = window.location.pathname;
         var initialCart = cart();
         var initialPayload = $.extend({}, identity(), cartPayload(initialCart));
+
+        // Fired once per product page load. The id comes from the view model
+        // (the request's product id), not from the DOM, because no markup is
+        // stable across themes. Deduped on the id so Magento's private-content
+        // refresh — which re-runs this script — is not counted as a second view.
+        if (config.productId) {
+            send('product_viewed',
+                 $.extend({}, identity(), { product_id: String(config.productId) }),
+                 'product-view-' + config.productId);
+        }
 
         if (path.indexOf('/checkout/onepage/success') !== -1) {
             send('checkout_completed', initialPayload, 'checkout-complete-' + path);
