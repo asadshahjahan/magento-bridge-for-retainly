@@ -62,6 +62,20 @@
                     <label>Retnly API Base URL</label>
                     <comment>Default: https://test.backend.zeroslip.co/api/v4/magento/</comment>
                 </field>
+                <field id="barcode_attribute"
+                       translate="label"
+                       type="text"
+                       sortOrder="50"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                    <label>Barcode Attribute Code</label>
+                    <comment>Leave empty unless your barcode attribute is named
+                        something unusual. Magento has no barcode field of its own, so
+                        we look for an attribute called barcode, upc, ean or gtin. If
+                        yours is called something else, enter its attribute code here
+                        (Stores -> Attributes -> Product).</comment>
+                </field>
             </group>
             <group id="pixel"
                    translate="label"
