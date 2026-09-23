@@ -8,6 +8,9 @@
                 <api_key/>
                 <store_id/>
                 <api_base_url>https://test.backend.zeroslip.co/api/v4/magento/</api_base_url>
+                <!-- Empty on purpose: the observer falls back to barcode / upc /
+                     ean / gtin, which covers almost every merchant with no setup. -->
+                <barcode_attribute/>
             </general>
             <pixel>
                 <enabled>1</enabled>

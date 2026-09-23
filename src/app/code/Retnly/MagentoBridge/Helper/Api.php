@@ -17,6 +17,7 @@ class Api extends AbstractHelper
     private const XML_PATH_API_KEY  = 'zeroslip/general/api_key';
     private const XML_PATH_STORE_ID = 'zeroslip/general/store_id';
     private const XML_PATH_BASE_URL = 'zeroslip/general/api_base_url';
+    private const XML_PATH_BARCODE_ATTRIBUTE = 'zeroslip/general/barcode_attribute';
 
     private Curl $curl;
     private EncryptorInterface $encryptor;
@@ -48,6 +49,23 @@ class Api extends AbstractHelper
             self::XML_PATH_STORE_ID,
             ScopeInterface::SCOPE_STORE
         );
+    }
+
+    /**
+     * The product attribute holding the barcode, or '' to use the defaults.
+     *
+     * Magento ships no barcode attribute at all, so every merchant who wants one
+     * creates a custom attribute and names it to suit their trade. Left empty --
+     * which it is for almost everyone -- the observer tries barcode, upc, ean and
+     * gtin in turn, so the common cases need no configuration and the unusual
+     * ones need one field rather than a support ticket.
+     */
+    public function getBarcodeAttribute(): string
+    {
+        return trim((string) $this->scopeConfig->getValue(
+            self::XML_PATH_BARCODE_ATTRIBUTE,
+            ScopeInterface::SCOPE_STORE
+        ));
     }
 
     /**

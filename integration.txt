@@ -1,7 +1,22 @@
-How to Connect Your Magento Store to Retnly
-==============================================
+Connect Your Magento Store to Retnly
+====================================
 
-Step 1 — Install the Retnly module
+This takes about 15 minutes. Steps 1-3 are run on your Magento server, steps 4-5
+in your Retnly dashboard, and step 6 in your Magento admin panel.
+
+You will need:
+  - Magento 2.4 or newer, on PHP 8.1 or newer
+  - SSH access to your Magento server
+  - A Magento admin account with Sales permissions
+  - Your Retnly account login
+
+Throughout, /path/to/magento means wherever Magento is installed on your server
+(commonly /var/www/magento or /var/www/html).
+
+
+STEP 1 — Install the Retnly module
+==================================
+
 SSH into your Magento server and run:
 
     cd /path/to/magento
@@ -9,117 +24,206 @@ SSH into your Magento server and run:
     bin/magento module:enable Retnly_MagentoBridge
     bin/magento setup:upgrade
     bin/magento setup:di:compile
+    bin/magento setup:static-content:deploy -f
     bin/magento cache:flush
 
+Then give the files back to your web server user. On most servers that user is
+www-data:
 
-Step 2 — Give your admin token a long lifetime
+    chown -R www-data:www-data var generated pub/static
 
+Do not skip this if you ran the commands above as root. setup:upgrade deletes
+Magento's generated code and the web server rebuilds it on the next page load —
+but it cannot, if root owns those folders, and your storefront will show an
+error page until you fix it. If you are not sure which user your web server
+runs as, this will tell you:
+
+    ps -o user= -C php-fpm | sort -u
+
+Two things to expect while this runs, both normal:
+
+  - Composer warns that some laminas/... and doctrine/annotations packages are
+    abandoned. Those are Magento's own dependencies, not Retnly's. Ignore them.
+  - setup:di:compile and setup:static-content:deploy each take several minutes
+    and print nothing while they work. They are not stuck. Let them finish.
+
+Confirm it installed:
+
+    bin/magento module:status Retnly_MagentoBridge
+
+It should say the module is enabled.
+
+
+STEP 2 — Check that Magento cron is running
+===========================================
+
+Retnly sends your data using Magento's own cron, so it has to be running:
+
+    crontab -l | grep magento
+
+If that prints nothing, set it up:
+
+    bin/magento cron:install
+
+Cron needs to run every minute. If it is not running, your orders are saved but
+never sent to Retnly, and you will see no error telling you why.
+
+
+STEP 3 — Create your Magento API token
+======================================
+
+First, stop the token from expiring. Magento expires admin tokens after one hour
+by default, which would break your syncing an hour after you set it up:
+
+    cd /path/to/magento
     bin/magento config:set webapi/jwtauth/admin_expiration 525600
     bin/magento config:set oauth/access_token_lifetime/admin 8760
     bin/magento cache:flush
 
-Set BOTH. They are different knobs for different Magento versions, and the
-units differ:
+Run both lines — they apply to different Magento versions, and running only one
+may leave you on the one-hour default.
 
-  webapi/jwtauth/admin_expiration   MINUTES. Magento 2.4.4+, which issues admin
-                                    tokens as JWTs. 525600 = one year.
-                                    DEFAULTS TO 60 — this is the one that
-                                    actually expires your token after an hour.
-  oauth/access_token_lifetime/admin HOURS. Magento 2.4.3 and earlier, which
-                                    issues opaque tokens. 8760 = one year.
+Now create the token. Replace the store address, username and password below
+with your own, and run it as a single line:
 
-On 2.4.4+ the oauth/ path alone does NOTHING to a JWT — the expiry is stamped
-into the token from webapi/jwtauth/admin_expiration when it is issued. Setting
-only the oauth/ one (and especially setting it to 0, which earlier versions of
-these instructions advised) leaves you on the 60-minute default: historical
-import and the periodic order sync stop working, silently, one hour after you
-connect. Live order capture is unaffected — see the note at the end of Step 4.
+    curl -X POST https://your-store.com/rest/V1/integration/admin/token -H "Content-Type: application/json" -d '{"username":"your_admin_username","password":"your_admin_password"}'
 
-To confirm it took effect, paste the token into https://jwt.io and check its
-claims: `exp` minus `iat` should be 31536000 (one year), not 3600.
+This prints a long token in quotes. Copy it, without the quotes — you need it in
+Step 5.
 
-The admin user you use below also needs Sales access. If the token is rejected
-with "The consumer isn't authorized to access %resources", note that Magento
-gives that same message for BOTH an expired token and a role missing
-Magento_Sales — check the expiry first, it is the common case.
-
-Then generate your API token:
-
-    curl -X POST https://your-store.com/rest/V1/integration/admin/token \
-      -H "Content-Type: application/json" \
-      -d '{"username":"your_admin_username","password":"your_admin_password"}'
-
-Save the token it returns — you'll need it in Step 4.
+If it returns "Could not resolve host", the store address above was not replaced
+with yours. If it says the account is locked, clear it with
+bin/magento admin:user:unlock your_admin_username and try again.
 
 
-Step 3 — Get your Retnly API Key
-Log into the ZeroSlip dashboard -> Integrations -> Magento. You'll see a ZeroSlip
-API Key at the top. Copy this key now before doing anything else — once you connect
-the store in the next step, this field disappears from the screen.
+STEP 4 — Copy your Retnly API Key
+=================================
+
+Log in to your Retnly dashboard and go to Integrations -> Magento.
+
+At the top of the page you will see your Retnly API Key. Copy it now. Once you
+connect your store in the next step, this key is no longer shown on screen.
 
 
-Step 4 — Connect your store on the ZeroSlip dashboard
-On the same page, fill in:
+STEP 5 — Connect your store
+===========================
 
-    Store URL:           your Magento store URL (e.g. https://your-store.com)
-    Magento API Token:   the token you generated in Step 2
+On the same Integrations -> Magento page, fill in:
 
-Click Connect Magento Store. The page should switch to show "Connected" with your
-store URL.
+    Store URL           Your store address, with no slash at the end.
+                        Example: https://your-store.com
+
+    Magento API Token   The token you copied in Step 3.
+
+Click Connect Magento Store. The page should change to show Connected, with your
+store URL underneath.
 
 
-Step 5 — Configure the module in Magento Admin
-Go to your Magento admin panel -> Stores -> Configuration -> Retnly -> General
+STEP 6 — Switch the integration on in Magento
+=============================================
 
-Fill in:
+In your Magento admin panel, go to:
 
-    Enable Retnly Integration:   Yes
-    Retnly API Key:              paste the key you copied in Step 3
-    Retnly Store ID:             leave blank (this is set automatically by the system)
-    Retnly API Base URL:         should already show the correct URL — do not change
-                                 it unless instructed
+    Stores -> Configuration -> Retnly -> General
 
-Click Save Config, then flush cache:
+Set:
 
+    Enable Retnly Integration    Yes
+    Retnly API Key               The key you copied in Step 4
+    Retnly Store ID              Leave blank. Retnly fills this in for you.
+    Retnly API Base URL          Leave exactly as it is.
+
+Click Save Config. Then, back on your server:
+
+    cd /path/to/magento
     bin/magento cache:flush
 
-
-Step 6 — Verify your cron is running
-Most production Magento stores already have cron configured. Verify:
-
-    crontab -l | grep magento
-
-If you don't see bin/magento cron:run, set it up:
-
-    bin/magento cron:install
-
-The cron must run every minute for order and customer sync to work.
+Your store is now connected. Nothing is sent to Retnly until this step is saved,
+so do not skip it.
 
 
-Step 7 — Import historical data (optional)
-On the ZeroSlip dashboard -> Magento page, select a start date under
-"Sync Your Magento Data" and click Start Import to pull in past orders and customers.
+STEP 7 — Check that it works
+============================
+
+Place a test order on your store. Within about a minute it should appear in your
+Retnly dashboard.
+
+To bring in orders from before today, go to Integrations -> Magento, choose a
+start date under "Sync Your Magento Data", and click Start Import. Retnly only
+sees orders placed after Step 1, so this is the only way to load your history.
 
 
-That's it — you're connected
------------------------------
-From now on:
+If something is not working
+===========================
 
-  - Every new order syncs to Retnly automatically within ~1 minute
-  - Every new customer registration syncs automatically
-  - Abandoned carts sync hourly (no duplicate sends)
-  - Order paid, fulfilled, and refunded events fire automatically for marketing automations
-  - Your checkout speed is completely unaffected — all syncing happens in the background
+My storefront now shows "An error has happened during application run"
+    This means Magento's generated code was cleared and cannot be rebuilt,
+    almost always because Step 1 was run as root. Fix it with:
+
+        cd /path/to/magento
+        rm -rf generated/code generated/metadata
+        bin/magento setup:di:compile
+        chown -R www-data:www-data var generated pub/static
+        bin/magento cache:flush
+
+    Your store should load again straight away. To confirm the cause, look at
+    the last few lines of var/log/exception.log — a message about a class ending
+    in "\Interceptor" not existing is this exact problem.
+
+Step 1 stopped with an "allowed memory size exhausted" error
+    Common on smaller servers. Re-run the command that failed with the memory
+    limit lifted, for example:
+
+        php -d memory_limit=-1 bin/magento setup:di:compile
+
+    Then carry on with the remaining commands in Step 1.
+
+Step 1 failed part-way through for any other reason
+    It is safe to re-run the whole block from the top. None of those commands
+    cause a problem by being run twice.
+
+My test order has not appeared after a few minutes
+    Check Step 6 was saved with Enable Retnly Integration set to Yes, and that
+    the API Key matches the one from Step 4 exactly, with no extra spaces.
+    Then check cron is running (Step 2) — this is the most common cause.
+
+The dashboard would not accept my token
+    Tokens expire after an hour unless you ran both commands in Step 3. Create a
+    fresh token and try again. If it is still refused, check that your Magento
+    admin user has Sales permissions.
+
+Live orders arrive, but Start Import does nothing
+    Importing needs Retnly to reach your store from the internet. If your store
+    is only reachable from inside your network, or sits behind a VPN, ask your
+    hosting provider to allow inbound access.
+
+My storefront looks unchanged and abandoned carts are not tracked
+    Re-run bin/magento setup:static-content:deploy -f and then
+    bin/magento cache:flush.
+
+Anything else
+    Email support@zeroslip.co with your store URL and roughly when you connected,
+    and we can see the delivery attempts from our side.
 
 
-Automation Triggers Available in Retnly
-------------------------------------------
-Once connected, you can build automations in ZeroSlip/Retnly dashboard -> Automations
-using any of these Magento trigger events:
+What happens now that you are connected
+=======================================
 
-  - magento_order_placed     fires when a new order is placed
-  - magento_order_paid       fires when an invoice is created (payment confirmed)
-  - magento_order_fulfilled  fires when the order is shipped and complete
-  - magento_order_cancelled  fires when an order is cancelled
-  - magento_order_refunded   fires when a credit memo is issued
-  - magento_cart_abandoned   fires hourly for carts idle over 1 hour (Email + Push only)
+  - New orders reach Retnly within about a minute
+  - New customer registrations sync automatically
+  - Abandoned carts sync every hour, with no duplicate messages
+  - Your checkout speed is unaffected — all syncing happens in the background,
+    and Retnly being briefly unavailable can never slow down or block a sale
+
+You can now build automations in Retnly under Automations, triggered by any of
+these Magento events:
+
+    magento_order_placed       a new order is placed
+    magento_order_paid         an invoice is created (payment confirmed)
+    magento_order_fulfilled    the order is shipped and complete
+    magento_order_cancelled    an order is cancelled
+    magento_order_refunded     a credit memo is issued
+    magento_cart_abandoned     a cart has sat idle for over an hour
+                               (Email and Push only)
+
+Need a hand at any point: support@zeroslip.co

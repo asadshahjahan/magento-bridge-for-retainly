@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Retnly\MagentoBridge\Observer;
 
+use Magento\Catalog\Api\CategoryRepositoryInterface;
+use Magento\CatalogInventory\Api\StockRegistryInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Retnly\MagentoBridge\Helper\Api;
 use Retnly\MagentoBridge\Model\EventOutbox;
 
 /**
@@ -35,10 +38,23 @@ class ProductChangedObserver implements ObserverInterface
     private const ENDPOINT = 'products/webhook/';
 
     private EventOutbox $outbox;
+    private Api $api;
+    private StockRegistryInterface $stockRegistry;
+    private CategoryRepositoryInterface $categoryRepository;
 
-    public function __construct(EventOutbox $outbox)
-    {
+    /** @var array<string,string> category id => name, for one save only. */
+    private array $categoryNames = [];
+
+    public function __construct(
+        EventOutbox $outbox,
+        Api $api,
+        StockRegistryInterface $stockRegistry,
+        CategoryRepositoryInterface $categoryRepository
+    ) {
         $this->outbox = $outbox;
+        $this->api = $api;
+        $this->stockRegistry = $stockRegistry;
+        $this->categoryRepository = $categoryRepository;
     }
 
     public function execute(Observer $observer): void
@@ -74,6 +90,17 @@ class ProductChangedObserver implements ObserverInterface
                 // Same shape the REST sync returns, so the receiver reuses
                 // `_build_product_images` rather than growing a second parser.
                 'media_gallery_entries' => $this->galleryEntries($product),
+                // "Not Visible Individually" (1) means this row is a configurable's
+                // CHILD -- a variant, not a product. The receiver folds those into
+                // their parent instead of listing them, and saving a child fires
+                // this observer too, so it has to be able to tell.
+                'visibility' => (int) $product->getVisibility(),
+                // Categories as the merchant sees them, not Magento's `type_id`.
+                'categories' => $this->categories($product),
+                // Shopify's variant shape, assembled here because only PHP can
+                // cheaply turn a child's `color: 12` into "Blue" and read its stock
+                // without one API call per product.
+                'variants'   => $this->variants($product),
             ];
         }
 
@@ -89,6 +116,203 @@ class ProductChangedObserver implements ObserverInterface
                 (string) ($product->getUpdatedAt() ?? '')
             )
         );
+    }
+
+    /**
+     * The product's barcode, or '' when the merchant records none.
+     *
+     * Magento has NO barcode attribute. Merchants create a custom one and name it
+     * after their trade, so the configured code wins and otherwise the common
+     * spellings are tried in turn. Returning '' rather than null keeps the JSON
+     * field a string, which is what the receiver and the product card expect.
+     */
+    private function barcode($product): string
+    {
+        $configured = $this->api->getBarcodeAttribute();
+        $codes = $configured !== '' ? [$configured] : ['barcode', 'upc', 'ean', 'gtin'];
+
+        foreach ($codes as $code) {
+            try {
+                $value = $product->getData($code);
+            } catch (\Exception $e) {
+                continue;
+            }
+            if ($value !== null && $value !== '' && !is_array($value)) {
+                return (string) $value;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * [quantity, policy] for one product, in Shopify's vocabulary.
+     *
+     * backorders 0 means "stop selling at zero" (Shopify's `deny`); anything else
+     * keeps selling (`continue`). A product whose stock cannot be read returns
+     * [null, ''] rather than [0, 'deny'] -- "unknown" and "none left" must not
+     * look the same on a product card, which is exactly why the dashboard used to
+     * hide stock for Magento rather than show a misleading zero.
+     */
+    private function stockFor($product): array
+    {
+        try {
+            $item = $this->stockRegistry->getStockItem((int) $product->getId());
+            $qty = $item->getQty();
+            return [
+                $qty === null ? null : (float) $qty,
+                (int) $item->getBackorders() === 0 ? 'deny' : 'continue',
+            ];
+        } catch (\Exception $e) {
+            return [null, ''];
+        }
+    }
+
+    /**
+     * [{"id": "3", "name": "makeup", "path": "Default Category / makeup"}].
+     *
+     * The path is worth the extra lookups: "what eye makeup do you have?" needs
+     * the hierarchy, not just the leaf. Names are memoised per save because a
+     * product in several categories otherwise re-loads the same ancestors for
+     * each of them.
+     */
+    private function categories($product): array
+    {
+        $out = [];
+        try {
+            $ids = (array) $product->getCategoryIds();
+        } catch (\Exception $e) {
+            return [];
+        }
+
+        foreach ($ids as $id) {
+            $id = (string) $id;
+            try {
+                $category = $this->categoryRepository->get((int) $id);
+                $this->categoryNames[$id] = (string) $category->getName();
+                $out[] = [
+                    'id'   => $id,
+                    'name' => (string) $category->getName(),
+                    'path' => $this->categoryPath($category),
+                ];
+            } catch (\Exception $e) {
+                // A category we cannot load is still a real grouping the merchant
+                // uses; keeping the id understates it less than dropping it.
+                $out[] = ['id' => $id, 'name' => '', 'path' => ''];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * "Default Category / makeup" from Magento's id path ("1/2/3").
+     *
+     * The root (id 1) is skipped: it is Magento's internal tree root and means
+     * nothing to a shopper or to a merchant reading a product card.
+     */
+    private function categoryPath($category): string
+    {
+        $names = [];
+        foreach (explode('/', (string) $category->getPath()) as $ancestorId) {
+            if ($ancestorId === '' || (int) $ancestorId <= 1) {
+                continue;
+            }
+            if (!isset($this->categoryNames[$ancestorId])) {
+                try {
+                    $this->categoryNames[$ancestorId] =
+                        (string) $this->categoryRepository->get((int) $ancestorId)->getName();
+                } catch (\Exception $e) {
+                    $this->categoryNames[$ancestorId] = '';
+                }
+            }
+            if ($this->categoryNames[$ancestorId] !== '') {
+                $names[] = $this->categoryNames[$ancestorId];
+            }
+        }
+        return implode(' / ', $names);
+    }
+
+    /**
+     * The product's variants in Shopify's shape.
+     *
+     * A configurable's children ARE its variants. Everything else gets exactly one
+     * synthetic variant built from itself, because Shopify guarantees at least one
+     * and every consumer reads variants[0] without asking which platform a product
+     * came from. An empty list here would push a platform branch into all of them.
+     */
+    private function variants($product): array
+    {
+        if ($product->getTypeId() === 'configurable') {
+            try {
+                $children = $product->getTypeInstance()->getUsedProducts($product);
+            } catch (\Exception $e) {
+                $children = [];
+            }
+            $out = [];
+            foreach ($children as $child) {
+                $out[] = $this->variantRow($child, $this->selectedOptions($product, $child));
+            }
+            if ($out) {
+                return $out;
+            }
+        }
+        return [$this->variantRow($product, [])];
+    }
+
+    /** One product -- parent, child or simple -- as a variant row. */
+    private function variantRow($product, array $selectedOptions): array
+    {
+        [$qty, $policy] = $this->stockFor($product);
+        return [
+            'id'                 => (string) $product->getId(),
+            'title'              => (string) $product->getName(),
+            'sku'                => (string) $product->getSku(),
+            'price'              => (string) ($product->getPrice() ?? '0.00'),
+            'inventory_quantity' => $qty,
+            'inventory_policy'   => $policy,
+            'barcode'            => $this->barcode($product),
+            'selected_options'   => $selectedOptions,
+        ];
+    }
+
+    /**
+     * [{"name": "Size", "value": "M"}] for one child of a configurable.
+     *
+     * A child stores its size as an option id, not a label, so the label is read
+     * off the parent's configurable attribute. This is what lets "the medium one"
+     * resolve to a specific SKU; without it the variants are an unlabelled list of
+     * prices, which is enough to show a range and not enough to sell.
+     */
+    private function selectedOptions($parent, $child): array
+    {
+        $out = [];
+        try {
+            $attributes = $parent->getTypeInstance()->getConfigurableAttributesAsArray($parent);
+        } catch (\Exception $e) {
+            return [];
+        }
+
+        foreach ((array) $attributes as $attr) {
+            $code = $attr['attribute_code'] ?? null;
+            if (!$code) {
+                continue;
+            }
+            $value = $child->getData($code);
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $label = null;
+            foreach ((array) ($attr['values'] ?? []) as $option) {
+                if ((string) ($option['value_index'] ?? '') === (string) $value) {
+                    $label = $option['store_label'] ?? null;
+                    break;
+                }
+            }
+            $out[] = [
+                'name'  => (string) ($attr['store_label'] ?? $attr['frontend_label'] ?? $code),
+                'value' => (string) ($label ?? $value),
+            ];
+        }
+        return $out;
     }
 
     /**
