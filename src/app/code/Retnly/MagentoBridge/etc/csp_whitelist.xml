@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!--
+    Content Security Policy entries this module needs.
+
+    WHY THIS FILE EXISTS
+        Magento ships a CSP that allows `https://www.gstatic.com/recaptcha/` — a
+        PATH, not the host — so `https://www.gstatic.com/firebasejs/...` is not
+        covered. On a store running CSP in report-only mode (the storefront
+        default) the Firebase SDK still loads and merely logs a violation; on a
+        store running it in restrict mode, which Magento uses for checkout and
+        which many merchants turn on storefront-wide, the SDK is BLOCKED. Push
+        registration then fails with no token and nothing but a CSP line in the
+        console to explain it.
+
+        The same applies to the endpoints the SDK talks to and to the Retnly
+        endpoint the pixel posts events to: both are `connect-src`, and neither
+        is in Magento's default allowlist.
+
+    SCOPE NOTE
+        `Retnly API Base URL` is a per-merchant setting, so a merchant pointing
+        at a host outside *.zeroslip.co must add it to their own whitelist.
+        A static file cannot know a runtime config value; a dynamic policy
+        collector would be the fix if that ever becomes common.
+-->
+<csp_whitelist xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Csp:etc/csp_whitelist.xsd">
+    <policies>
+        <!-- The Firebase compat SDK is served from gstatic. Magento's default
+             policy allows only the /recaptcha/ path on this host. -->
+        <policy id="script-src">
+            <values>
+                <value id="retnly_gstatic" type="host">https://www.gstatic.com</value>
+            </values>
+        </policy>
+        <!-- DO NOT add a `script-src-elem` policy here.
+             It was tried and reverted. Magento's own CSP never sets that
+             directive, so declaring it does not EXTEND an existing list — it
+             CREATES the directive containing only our one host, and every other
+             script on the page (inline blocks, the theme's own bundles) then
+             violates it. On a store in report-only mode that is a console full
+             of noise; on a store in restrict mode it breaks the whole
+             storefront. `script-src` is the fallback for script-src-elem when
+             the latter is absent, which is exactly the behaviour we want. -->
+
+        <policy id="connect-src">
+            <!-- Where the pixel POSTs its events. -->
+            <values>
+                <value id="retnly_backend" type="host">https://*.zeroslip.co</value>
+                <!-- Firebase Cloud Messaging registration and installations.
+                     getToken() calls both; blocking either yields a token that
+                     never arrives rather than an obvious error. -->
+                <value id="retnly_fcm_registrations" type="host">https://fcmregistrations.googleapis.com</value>
+                <value id="retnly_firebase_installations" type="host">https://firebaseinstallations.googleapis.com</value>
+                <value id="retnly_fcm" type="host">https://fcm.googleapis.com</value>
+            </values>
+        </policy>
+        <!-- NOTE on the service worker: it is served from this store's own
+             origin (/retnly/sw/messaging), so 'self' already covers it and
+             nothing is needed here. A `worker-src` entry was tried and removed —
+             'self' is a CSP KEYWORD, not a host, and this file's `type="host"`
+             values are domains. Putting a keyword here produces an invalid
+             policy rather than a permissive one. A merchant who has tightened
+             `default-src` beyond 'self' would need to fix it on their side. -->
+    </policies>
+</csp_whitelist>
