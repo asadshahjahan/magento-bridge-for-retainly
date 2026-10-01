@@ -131,7 +131,19 @@ Set:
     Enable Retnly Integration    Yes
     Retnly API Key               The key you copied in Step 4
     Retnly Store ID              Leave blank. Retnly fills this in for you.
-    Retnly API Base URL          Leave exactly as it is.
+    Retnly API Base URL          https://public.api.zeroslip.co/api/v4/magento/
+
+IMPORTANT — do not skip the API Base URL.
+
+The field is NOT already correct. It arrives holding a testing address, and a
+store left on it will appear to work perfectly: Magento saves, the connection
+succeeds, orders send without error. They simply go to our testing system
+instead of your account, so your Retnly dashboard stays empty and nothing
+tells you why.
+
+Replace the whole field with the address above, exactly as written, including
+the trailing slash. If Retnly gave you a different address, use that one
+instead.
 
 Click Save Config. Then, back on your server:
 
